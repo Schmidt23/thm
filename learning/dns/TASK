@@ -1,0 +1,8 @@
+Steps on how to solve this task:
+1. Identify which file contains the suspicious dns queries.
+2. Identify what domain name was used to exfiltrate the data.
+( You can use tshark to filter the dns query name )
+( Google how to filter dns query names with tshark )
+3. Run ~/dns-exfil-infil/packetyGrabber.py and put the correct inputs in.
+
+If you do everything correctly you will be able to answer the last 2 questions.

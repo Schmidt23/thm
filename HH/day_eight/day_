@@ -1,0 +1,4 @@
+POST /claim HTTP/1.1 Host: 10.114.141.228:3000 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0 Accept: */* Accept-Language: en-US,en;q=0.5 Accept-Encoding: gzip, deflate, br Referer: http://10.114.141.228:3000/dashboard Origin: http://10.114.141.228:3000 Connection: keep-alive Cookie: connect.sid=s%3A6Hm90on3OnIMMNmMs1r-EON_yB3kQLGq.3tcqisdXPDpJ6fu36tqOi5TYZBR093nKNkPJanRErSw Priority: u=0 Content-Length: 0
+
+
+grab ne cookie repeater duplöicate requests as group in parallel against it

@@ -1,0 +1,101 @@
+hostname --system info
+uname --system info
+cat /proc/version --The proc filesystem (procfs) provides information about the target system processes. You will find proc on many different Linux flavors, making it an essential tool to have in your arsenal. Looking at /proc/version may give you information on the kernel version or what compiler was used to create it. (worthless for me)
+ cat /etc/issue -- ubuntu version
+The ps command provides a few useful options.
+
+ps aux: The aux option will show processes for all users a, display the user that launched the process u, and show processes that are not attached to a terminal x. Looking at the ps aux command output, you can have a better understanding of the system and potential vulnerabilities.
+ps axjf: The axjf option will show processes from all users a, include processes that have no controlling terminal x, use jobs format output j, and forest/tree view f. 
+
+
+If a cron job is running a script that you can modify, it could become a potential escalation vector.
+
+You can start by examining /etc/crontab and listing the contents of /var/spool/cron/ or /etc/cron.d/ to see what's scheduled and, more importantly, who it's running as. 
+
+The output is as follows:
+*/5 * * * * root /root/backup.sh
+
+The first field represents the minute when the script is supposed to be run (valid range: 0-59)
+The second field represents the hour when the script is supposed to be run (valid range: 0-23)
+The third field represents the day of the month when the script is supposed to be run (valid range: 1-31)
+The fourth field represents the month when the script is supposed to be run (valid range: 1-12)
+The fifth field represents the day of the week when the script is supposed to be run(valid range: 0-7, both 0 and 7 represent Sunday)
+The sixth field represents the user who will run the task
+The final field represents the task to be run, which can be any script or binary as long as it's executable
+
+Expression	Meaning	Actual run times
+*/5 * * * *	every 5 minutes	0,5,10,15,20,25,30,35,40,45,50,55
+5 * * * *	minute 5 of every hour	05 past each hour
+15,45 * * * *	minute 15 and 45	15 and 45 past each hour
+0-30/5 * * * *	every 5 minutes from 0 to 30	0,5,10,15,20,25,30
+
+
+The dpkg tool allows us to query all installed packages and their version. This is especially helpful in privilege escalation attempts when trying to find vulnerable binaries with known exploits.
+
+The command to list all installed software is dpkg -l.
+
+The id command will provide a general overview of the user’s privilege level and group memberships. It is worth remembering that the id command can also be used to obtain the same information for another user.
+
+The env command will show environmental variables.
+
+Looking at earlier commands with the history command can give us some idea about the target system and, albeit rarely, store information such as passwords or usernames.
+
+The target system may be configured to allow users to run some (or all) commands with root privileges. The sudo -l command can be used to list all commands your user can run using sudo. Depending on the configuration, you may be required to input your current user's password when running the sudo command.
+
+Reading the /etc/passwd file can be an easy way to discover users on the system.
+cat /etc/passwd | cut -d ":" -f 1
+
+Remember that this will return all users, some of whom are system or service users that would not be very useful. Another approach could be to grep for “home” as real users will most likely have their folders under the “home” directory.
+cat /etc/passwd | grep /home
+
+The target system may be a pivoting point to another network. The ifconfig command gives you information about the network interfaces of the system. 
+
+
+Following an initial check for existing interfaces and network routes, it is worth looking into existing communications. The netstat command can be used with several different options to gather information on existing connections.
+
+netstat -a shows all listening ports and established connections.
+
+netstat -at or netstat -au can also be used to list TCP or UDP protocols, respectively.
+
+netstat -l lists ports in “listening” mode. These ports are open and ready to accept incoming connections. This can be used with the -t option to list only ports that are listening using the TCP protocol
+netstat -s lists network usage statistics by protocol. This can also be used with the -t or -u options to limit the output to a specific protocol.
+netstat -tp lists connections with the service name and PID information.
+The -n flag tells netstat to show numeric addresses and port numbers instead of resolving them.
+netstat -i shows interface statistics.
+The netstat usage you will probably see most often in blog posts, write-ups, and courses is netstat -ano which could be broken down as follows;
+
+-a: Display all sockets
+-n: Do not resolve names
+-o: Display timers
+
+On modern Linux distributions, netstat has been replaced by the ss command. The core is mainly the same, with some subtle differences, like routing information being moved to IP, and some new functionality being added. As an example, ss -tpl is the equivalent of netstat -tpl. netstat still exists as part of the net-tools package.
+
+
+Below are some useful examples for the find command.
+
+Find files:
+
+find . -name flag1.txt finds the file named “flag1.txt” in the current directory and subdirectories recursively
+find /home -name flag1.txt finds the file names “flag1.txt” in the /home directory and subdirectories recursively
+find / -type d -name config finds the directory named config under “/”
+find / -type f -perm 0777 finds files with the 777 permissions (files readable, writable, and executable by all users)
+find / -perm -a=x finds executable files
+find /home -user frank finds all files for user “frank” under “/home”
+find / -mtime -10 finds files that were modified in the last 10 days
+find / -atime -10 finds files that were accessed in the last 10 days
+find / -cmin -60 finds files changed within the last hour (60 minutes)
+find / -amin -60 finds files accessed within the last hour (60 minutes)
+find / -size +50M finds files with at least 50 MB size
+
+The example above returns files that are larger than 100 MB. It is important to note that the find command tends to generate errors, which sometimes makes the output hard to read. To address this, we can use 2>/dev/null, which sends errors to /dev/null, effectively ignoring them.
+Folders and files that can be written to or executed from:
+
+find / -writable -type d 2>/dev/null finds world-writeable folders.
+find / -perm -222 -type d 2>/dev/null finds world-writeable folders.
+find / -perm -o w -type d 2>/dev/null finds world-writeable folders.
+find / -perm -o x -type d 2>/dev/null finds world-executable folders
+Wildcards can be used when you don't know the exact name of a file you are looking for. Say, for example, you want to find a text file containing passwords. You could use the following command.
+find / -name pass*.txt
+Below is a short example used to find files that have the SUID bit set. The SUID bit allows the file to run with the privilege level of the account that owns it, rather than the account that runs it. 
+
+find / -perm -u=s -type f 2>/dev/null finds files with the SUID bit, which allows us to run the file with a higher privilege level than the current user.

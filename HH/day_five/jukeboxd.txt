@@ -1,0 +1,29 @@
+cat jukeboxd.py
+#!/usr/bin/env python3
+
+import argparse
+import time
+
+NOW_PLAYING = [
+    "Khruangbin - Maria Tambien",
+    "Men I Trust - Show Me How",
+    "Crumb - Locket",
+    "Mac DeMarco - Chamber of Reflection",
+]
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Beach Bar jukebox streamer")
+    parser.add_argument("--stream-pass", required=True, help="stream backend password")
+    parser.add_argument("--bitrate", default="320k")
+    args = parser.parse_args()
+
+    i = 0
+    while True:
+        track = NOW_PLAYING[i % len(NOW_PLAYING)]
+        i += 1
+        time.sleep(30)
+
+
+if __name__ == "__main__":
+    main()

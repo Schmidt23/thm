@@ -1,0 +1,42 @@
+ftp 10.114.152.72  
+anonymous no password input
+
+ftp> get PUBLIC_NOTICE.txt /home/kali/Documents/thm/learning/ftp/PUBLIC_NOTICE.txt
+
+So, from our enumeration stage, we know:
+
+    - There is an FTP server running on this machine
+
+    - We have a possible username
+
+Using this information, let's try and bruteforce the password of the FTP Server.
+
+Hydra
+
+Hydra is a very fast online password cracking tool, which can perform rapid dictionary attacks against more than 50 Protocols, including Telnet, RDP, SSH, FTP, HTTP, HTTPS, SMB, several databases and much more. Hydra is already installed on the AttackBox, however, if you need it on your own attacking machine, you can find the GitHub repository here(opens in new tab).
+
+The syntax for the command we're going to use to find the passwords is this:
+
+"hydra -t 4 -l mike -P /usr/share/wordlists/rockyou.txt -vV 10.10.10.6 ftp"
+Let's break it down:
+
+SECTION             FUNCTION
+
+hydra                   Runs the hydra tool
+
+-t 4                    Number of parallel connections per target
+
+-l [user]               Points to the user who's account you're trying to compromise
+
+-P [path to dictionary] Points to the file containing the list of possible passwords
+
+-vV                     Sets verbose mode to very verbose, shows the login+pass combination for each attempt
+
+[machine IP]            The IP address of the lab machine
+
+ftp / protocol          Sets the protocol
+
+Let's crack some passwords!
+
+ftp 10.114.152.72  login mike with password
+ftp> get ftp.txt /home/kali/Documents/thm/learning/ftp/ftp.txt

