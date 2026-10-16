@@ -1,0 +1,107 @@
+Querying public DNS records from open resolvers (A, MX, TXT, etc.).
+Searching certificate transparency logs (e.g., crt.sh) for subdomains and issued certificates.
+Reviewing job postings on LinkedIn or company career pages for tech stack hints.
+Reading public news, press releases, or leaked documents on paste sites.
+Checking exposed devices via search engines like Shodan or Censys.
+Scanning public GitHub repositories for hardcoded credentials or configuration files.
+
+
+WHOIS is a query/response protocol defined in RFC 3912. WHOIS servers listen on TCP port 43 and provide registration details for domain names. The domain registrar maintains these records for the domains they lease.
+
+From a WHOIS response, the following details may be available (when not redacted):
+
+Registrar: The company (e.g., Namecheap, GoDaddy) that registered the domain.
+Registrant contact information: Name, organisation, address, phone, and email. However, privacy services (standard since GDPR 2018) usually replace this with "Withheld for Privacy" or similar.
+Dates: Creation (registration), Updated (last change), and Expiration (renewal deadline).
+Name servers: The DNS servers authoritative for the domain.
+Status codes: For example, clientTransferProhibited indicates the domain is locked against unauthorised transfers.
+Abuse contacts: The registrar's email and phone for reporting issues.
+
+Full personal details are now rare due to privacy laws (GDPR, CCPA) and widespread use of privacy proxies. In practice, attackers focus on dates (for estimating age or timing social engineering around renewal periods), the registrar (for phishing patterns), name servers (potential weak points), and historical changes. Services like WHOXY.COM provide historical WHOIS snapshots. Historical WHOIS data can reveal previous owners, registrar changes, or name server migrations that may indicate past compromises or infrastructure shifts.
+
+WHOIS Is Being Replaced By RDAP
+As of 28 January 2025, ICANN officially sunsetted the traditional WHOIS protocol for generic top-level domains (gTLDs) in favour of the Registration Data Access Protocol (RDAP). RDAP is the modern successor: it uses HTTPS (secure), returns structured JSON (machine-readable and consistent), supports internationalisation, provides better privacy controls (differentiated access), and aligns with current data protection rules. While legacy whois clients still work (often via failover or older servers), RDAP is now the authoritative standard. Many tools and browsers redirect to RDAP automatically, and command-line access is straightforward with curl or dedicated clients like OpenRDAP.
+
+To query WHOIS, use the whois command-line client (faster than most web tools) or online viewers for legacy queries.
+
+Syntax: whois DOMAIN_NAME
+whois tryhackme.com  
+
+RDAP example
+
+Use curl to query a public RDAP endpoint (e.g., Verisign for .com domains). The jq utility formats the JSON output for readability;
+curl -s https://rdap.verisign.com/com/v1/domain/tryhackme.com | jq .
+
+What to look for:
+
+Redirection chain (Verisign to registrar server).
+Dates: useful for estimating company age or identifying renewal phishing windows.
+Name servers: potential new targets (if in scope).
+Status: locked domains (e.g., clientTransferProhibited) are harder to hijack.
+Online alternatives (if the whois command behaves unexpectedly):
+
+https://whois.icann.org/ (legacy WHOIS)
+https://lookup.icann.org/ (modern RDAP-focused lookup)
+https://www.whoxy.com/ (historical WHOIS snapshots, free limited use)
+
+
+Why prefer dig over nslookup?
+This task introduces two DNS query tools: nslookup and dig. Both query DNS, but dig (historically a backronym for "Domain Information Groper") is the modern, preferred option. It provides cleaner output, displays TTL values by default (showing how long records are cached), and is more reliable for complex queries and scripting. nslookup is covered here for compatibility, since you will encounter it in older documentation and on Windows systems, but dig should be your default tool.
+
+Syntax:
+
+nslookup DOMAIN_NAME performs a simple lookup using your default resolver.
+nslookup -type=TYPE DOMAIN_NAME [SERVER] specifies a record type and an optional DNS server.
+
+Query type	Result
+A	IPv4 address(es) for the domain
+AAAA	IPv6 address(es) for the domain
+CNAME	Canonical Name: an alias that points one domain name to another
+MX	Mail Servers: the servers responsible for handling email for the domain
+SOA	Start of Authority: the primary name server, admin email, and zone serial number
+TXT	Text Records: arbitrary text, commonly used for SPF, DKIM, DMARC, and domain verification
+
+
+dig is the modern, preferred DNS query tool.
+
+Syntax: dig [@SERVER] DOMAIN_NAME [TYPE]
+dig @1.1.1.1 thmlabs.com TXT
+Privacy tip: Use public resolvers like 1.1.1.1 (which supports DNS over HTTPS and DNS over TLS) to avoid your ISP logging your queries.
+
+
+One well-known free tool is DNSDumpster. https://dnsdumpster.com/ It aggregates public DNS data from sources such as search engine caches, zone transfer databases, and certificate records. It does not perform brute-force enumeration, which means it remains fully passive. The results include subdomains and hosts, resolved IPs with geolocation, MX, TXT, and CNAME records, and visual maps showing the relationships between these.
+
+
+Certificate Transparency (CT) Logs
+The most effective passive subdomain discovery method today is Certificate Transparency logs, accessible through crt.sh.
+
+Certificate Transparency is a public logging framework (mandatory since approximately 2015) that records every SSL/TLS certificate issued by participating Certificate Authorities. Each certificate contains a Subject Alternative Name (SAN) field listing the domains and subdomains it covers. By searching these logs, you can discover subdomains without sending any traffic to the target.
+
+To use crt.sh, visit https://crt.sh and search for %.tryhackme.com. The % wildcard matches any subdomain. The results will list every certificate issued for subdomains of tryhackme.com, often revealing 10 to 100 times more subdomains than DNSDumpster alone.
+
+Navigating the Shodan Interface
+To begin, navigate to https://www.shodan.io. No account is required for basic searches. Enter a domain name (e.g., tryhackme.com) or an IP address from your earlier DNS lookups (e.g., 104.26.10.229) into the search bar.
+
+The results page displays a list of matching hosts. Selecting a host opens a detailed view containing the following information:
+
+IP address and ASN (Autonomous System Number): identifies the network block.
+Hosting provider/organisation (e.g., Cloudflare, AWS): reveals the infrastructure behind the domain.
+Geographic location (country, city): approximate physical location of the server.
+Open ports and services: with version strings and banners (e.g., HTTP server type and version).
+Tags: such as cdn or vuln if a known vulnerability matches the detected service version.
+
+Search Tips
+Shodan supports a range of search filters for narrowing results:
+
+hostname:tryhackme.com matches a specific hostname.
+org:"TryHackMe" filters by organisation name.
+port:443 country:US filters by port and country.
+http.component:"wordpress" identifies technology stack (if exposed).
+For the full reference, see: https://help.shodan.io/the-basics/search-query-fundamentals
+
+For further exploration, Censys.io (free basic searches) provides similar host and certificate data. It can serve as a useful complement when cross-referencing results.
+
+Note: Shodan is trash without account. no filters, small request limit
+
+
+
