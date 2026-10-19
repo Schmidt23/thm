@@ -1,0 +1,159 @@
+MLflow Enumeration
+MLflow is the most rewarding service to enumerate because it stores everything in one place and exposes it through a clean REST API. If you find an open MLflow instance, here is the chain you follow.
+
+Step 1: List all experiments.
+
+POST /api/2.0/mlflow/experiments/search
+The response returns every experiment on the server with its name and internal ID. Experiment names often reveal project codenames and business objectives: fraud-detection-v3, rag-embeddings-tuning, customer-churn-prototype.
+
+Step 2: List registered models.
+
+GET /api/2.0/mlflow/registered-models/list
+This returns the full model inventory. Every model the organisation has built and registered. Names, descriptions, and creation timestamps.
+
+Step 3: Get model version details.
+
+GET /api/2.0/mlflow/model-versions/search
+This is where it gets serious. The response includes the source field, which contains the artifact URI. That URI frequently points to internal cloud storage: s3://internal-ml-models-corp/experiments/1/artifacts/ or a similar path. It also includes the user_id of the data scientist who created each version, creation timestamps, and stage labels showing which models are in production versus staging.
+
+Step 4: Search training runs.
+
+POST /api/2.0/mlflow/runs/search
+Submit this with an empty body or a filter, and you get back hyperparameters, training metrics, and custom tags. Tags are particularly valuable. Teams use them for internal project codenames, Git commit hashes that link back to proprietary source code, and deployment environment identifiers.
+
+Step 5: List downloadable artifacts.
+
+GET /api/2.0/mlflow/artifacts/list
+This lists the actual model files available for download. At this point, you have mapped the organisation's entire ML portfolio through five API calls.
+
+
+Inference Server Metadata
+Triton and TensorFlow Serving both expose metadata endpoints that tell you exactly how to talk to the model.
+
+On Triton GET /v2/models/<name>/config the response includes input tensor names, their multi-dimensional shapes, accepted data types (FP32, UINT64, INT8), the maximum batch size, and the backend framework (tensorflow_graphdef, pytorch_libtorch, onnxruntime).
+This is the equivalent of getting a complete database schema. It tells an attacker exactly how to format a valid inference request.
+On TensorFlow Serving GET /v1/models/<name>/metadata returns the same kind of input/output tensor specifications, shape, dtype, and name for every input and output the model expects.
+
+
+Vector Database Enumeration
+Vector databases reveal what data the AI system is working with and which embedding model processes it.
+
+On Weaviate, GET /v1/meta returns the server version and installed modules.
+GET /v1/schema returns every class definition, including property names and the vectoriser module configuration.
+That vectoriser field tells you which embedding model the system uses.
+Weaviate also exposes /v1/graphql for full schema introspection and data querying on unauthenticated instances.
+On Qdrant, GET /collections it lists all collection names.
+GET /collections/<name> returns vector dimensions, the distance metric, and the total point count.
+A collection named internal-hr-policies with 768-dimensional vectors and 50,000 points tells you a lot about what that RAG system indexes.
+On Chroma, older versions expose GET /api/v1/collections without authentication by default.
+
+Prometheus Metrics as Intelligence
+Model servers often expose /metrics on a dedicated port (Triton on 8002, TorchServe on 8082). These Prometheus-format endpoints return:
+
+Model names and version numbers currently loaded
+Inference request counts and latency percentiles
+Batch sizes being processed
+GPU memory utilisation per model
+This is passive intelligence. You learn the deployment topology, which models handle the most traffic, how much GPU capacity backs them, and whether the system is under load. All without sending a single request to the inference API itself.
+
+Debug Interfaces and Information Leakage
+FastAPI-based ML services auto-generate /docs (Swagger UI) and /openapi.json. Both expose the full request/response schema, authentication requirements, and example payloads for every endpoint. Free reconnaissance.
+
+MLflow's GraphQL endpoint  /graphql has historically bypassed the REST API's authentication controls. An unauthenticated attacker could query internal resolvers like mlflowSearchRuns and mlflowGetRun, extracting host machine usernames, source code paths via mlflow.source.name tags, and the full project inventory. Appending ?debug=true or ?verbose=1 to AI gateway endpoints can trigger raw stack traces that reveal filesystem paths, installed library versions, and, occasionally, hardcoded credentials that failed to load from environment variables.
+
+
+Jupyter Notebook Enumeration
+GET /api/kernels on an unauthenticated Jupyter instance returns the names, kernel IDs, and last activity timestamps of running kernels. Enough to infer what code is executing. But the real value is in the notebook cells. Data scientists routinely store cleartext credentials for MLflow (MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD), cloud storage access keys, and Hugging Face tokens directly in their code. This is often the bridge between compromising one service and gaining access to everything else in the stack.
+
+
+
+Case Study: IBM X-Force ML Training Infrastructure Attack Chain
+In 2025, IBM X-Force Red documented a complete attack chain that demonstrates exactly what this task teaches.
+
+The attack started with a phishing attempt targeting a data scientist, which gave the attackers access to an Azure ML environment. Inside a Jupyter notebook, they found cleartext MLflow credentials stored in a cell. Using those credentials, they ran MLOKit, a CLI tool built by IBM's X-Force Red team specifically for MLflow reconnaissance.
+
+MLOKit automated the entire enumeration chain. list-models to inventory every registered model. download-model to pull version metadata and artifact URIs. The tool walked the same API endpoints we covered above, but in an automated sequence. The entire ML portfolio was exfiltrated through standard REST API calls that the MLflow server treated as normal authenticated requests.
+
+The chain went:
+
+Jupyter notebook (credentials) to MLflow tracking server (model registry) to S3 storage (model artifacts).
+Three components, each trusting the one before it.
+The security failure was not a software vulnerability. It was that each service was accessible, and the credentials to connect them were sitting in a notebook cell.
+
+IBM later extended MLOKit to support SageMaker and other platforms, adding modules for list-notebooks, add-notebook-trigger (for code execution via lifecycle configurations), and poison-model (for overwriting model artifacts). The tool is open-source on GitHub.
+
+
+Platform Misconfigurations That Attackers Map
+Every major ML platform has documented misconfigurations that turn routine deployments into reconnaissance targets.
+
+MLflow shipped without authentication by default before version 2.x.
+
+Even after authentication was added, CVE-2026-2635 revealed that MLflow's basic_auth.ini file contained hardcoded default credentials.
+Attackers running mass port scans on port 5000 could authenticate using these defaults.
+CVE-2026-2033 went further: a directory traversal flaw in the artifact handler allowed unauthenticated remote code execution.
+Both scored CVSS 9.8.
+Kubeflow dashboards are frequently deployed without OIDC authentication and exposed via a basic Kubernetes LoadBalancer or NodePort.
+
+An unauthenticated user can access the full Kubeflow interface and spawn Jupyter notebooks, which are attached to Kubernetes service accounts with cluster-level permissions.
+That is a direct path from an open dashboard to container orchestration access.
+TorchServe exposes a management API on port 8081 that allows dynamic model registration from arbitrary URLs.
+
+If that port is accessible, an attacker can instruct the server to download and load a malicious .mar (Model Archive) file from an external server.
+TorchServe executes initialisation code during model loading, so loading a crafted archive achieves remote code execution.
+SageMaker notebooks with DirectInternetAccess: Enabled accept inbound connections from the internet.
+
+A 2024 cloud security report found that 82% of organisations using SageMaker had at least one notebook configured this way.
+
+
+Model Registries: The Highest-Value Target
+We covered MLflow enumeration in Task 4. Now let's talk about why an unsecured registry is the single most damaging reconnaissance finding.
+
+A registry does not just store model files. It stores the complete lineage:
+
+Model names
+Version history
+Stage labels (staging, production, archived)
+Creation timestamps
+Run IDs linking back to full training metadata
+Artifact URIs revealing internal cloud storage paths
+User ID of every contributor
+One open registry maps the entire ML product portfolio. IBM X-Force documented the exploitation pattern:
+
+An attacker finds MLflow credentials in a Jupyter notebook
+They run MLOKit against the registry
+Then exfiltrate every model artifact
+The registry is the map that tells the attacker where everything else is stored.
+
+
+Supply Chain Reconnaissance
+AI systems depend heavily on external resources, and those dependencies are discoverable during reconnaissance.
+
+Hugging Face tokens appear in GitHub repositories via simple dorks: filename:.env HF_TOKEN.
+
+They appear in .env files, CI/CD pipeline logs, and Kubernetes secrets.
+A compromised token grants read and write access to the organisation's private models and datasets on the Hugging Face platform.
+Dependency confusion applies to ML pipelines just as it applies to traditional software.
+
+ML projects have large requirements.txt files with internal package names.
+If an internal package like company-data-utils is not registered on PyPI, an attacker can register it there.
+Kubeflow pipelines that build containers at training time pull packages live, so a typosquatted or misconfigured package can execute code inside the training cluster.
+Model download sources are identifiable during reconnaissance.
+
+If the organisation pulls models from the Hugging Face Hub or the PyTorch Hub, the download paths are visible in configuration files, notebook cells, and container build logs.
+An attacker who can inject a malicious model into an upstream source (or replace one via a compromised HF token) poisons the entire supply chain.
+
+
+Case Study: ShadowRay Campaign (CVE-2023-48022)
+The ShadowRay campaign is the clearest example of how reconnaissance of a single AI component cascades into full infrastructure compromise.
+
+Ray's Job Submission API on port 8265 shipped without authentication by design. Anyscale, the company behind Ray, maintained that Ray should run only within trusted network boundaries and that the lack of authentication was an intentional feature, not a bug. They disputed the CVE. Attackers disagreed.
+
+Using Shodan, they identified over 230,000 publicly exposed Ray dashboards. Once they found an open dashboard, they submitted malicious jobs through /api/jobs/ containing multi-stage payloads.
+The first stage performed reconnaissance on the compromised host: reading /etc/passwd to enumerate users and running printenv to dump environment variables and harvest AWS IAM tokens and other cloud credentials. Using those stolen credentials, the attackers pivoted laterally across cloud infrastructure.
+The primary objective was resource theft. The attackers hijacked GPU compute nodes and deployed XMRig cryptocurrency miners. They capped CPU usage at 60% and disguised their processes as legitimate Linux kernel workers to avoid detection.
+The ShadowRay 2.0 variant, active from late 2025, added significant sophistication.
+
+Attackers used LLMs to generate adaptable malware payloads and established persistence through hidden cron jobs and systemd services.
+They hosted their payloads on GitLab and, when those repositories were taken down, migrated them to GitHub within days.
+The campaign also deployed sockstress (a TCP exhaustion tool) against production websites, turning the operation into a multi-purpose botnet.
+Why this matters for this room: the entire ShadowRay chain started with reconnaissance. Finding an exposed dashboard (Task 2). Confirming it was Ray (Task 3). The API was unauthenticated and ready for job submission (Task 4). One exposed component, discovered through the same techniques we have been practising, led to credential theft, lateral movement, and large-scale resource hijacking.

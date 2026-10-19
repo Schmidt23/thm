@@ -1,0 +1,176 @@
+Model Serving Endpoints
+
+These are the frameworks that load trained models into memory and expose prediction APIs. They are the front door of any AI deployment.
+
+NVIDIA Triton Inference Server is one of the most common. It exposes HTTP on port 8000, gRPC* on port 8001, and Prometheus metrics on port 8002. Three ports for one service.
+TensorFlow Serving uses gRPC on 8500 and HTTP on 8501.
+TorchServe exposes inference on 8080, a management API on 8081, and metrics on 8082.
+For LLM-specific deployments, Ollama runs on port 11434, and vLLM typically serves on port 8000. Both expose OpenAI-compatible API formats.
+Why do many of these expose both HTTP and gRPC at the same time? gRPC is faster for streaming large tensor* payloads between internal services. HTTP/REST is easier for client applications to consume. So they run both.
+
+*gRPC - A high-performance binary protocol used for fast communication between services. Many AI inference servers use gRPC alongside HTTP because it handles large tensor data more efficiently. Standard HTTP scanners cannot interpret gRPC traffic.
+
+*tensor - A multi-dimensional array of numbers that AI models use as input and output. When a Triton config specifies an input shape of [1, 47] with dtype FP32, it means the model expects 47 floating-point values as input.
+
+Orchestration and Experiment Tracking
+
+These platforms manage the entire ML lifecycle, from experiment design through to model deployment. They are the highest-value targets during reconnaissance because they contain everything.
+
+MLflow Tracking Server runs on port 5000.
+It records every experiment, every hyperparameter configuration, every training metric, and every model artifact the organisation produces.
+If you find an open MLflow instance, you have found their complete ML research history.
+Kubeflow runs on Kubernetes (ports 80/443) and orchestrates training pipelines, notebook servers, and model deployments.
+Ray exposes a dashboard on port 8265 and a server endpoint on port 8000.
+
+
+
+Vector Databases
+
+These store embeddings (numerical representations of documents) and power semantic search for RAG pipelines. If an organisation has an AI chatbot or knowledge assistant, there is almost certainly a vector database behind it.
+
+Qdrant runs on port 6333 for HTTP and 6334 for gRPC.
+Weaviate runs on port 8080 and includes a GraphQL endpoint. Milvus uses port 19530.
+Chroma runs on port 8000.
+What makes these interesting from a recon perspective is that their schema endpoints reveal which embedding model the system uses and what kind of data it contains. A collection called "internal-hr-policies" with 768-dimensional vectors tells you quite a lot about what that RAG system is doing.
+
+Model Registries
+
+A model registry stores the actual model files. Serialised .pkl, .pt, .onnx, and .mar files, along with version history, stage transitions (staging, production, archived), artifact URIs pointing to cloud storage, and the identity of who created each version. An unsecured registry is the single highest-value reconnaissance target. It maps the organisation's entire ML product portfolio in one place.
+
+
+Supporting Infrastructure
+
+Jupyter notebooks (port 8888) often run with --ip=0.0.0.0 and no authentication. That gives direct terminal access to anyone who reaches the port. Data scientists also routinely store cleartext credentials in notebook cells.
+MinIO (ports 9000 and 9001) provides S3-compatible object storage for model artifacts. Bucket listing is frequently enabled.
+Prometheus metrics endpoints on model servers (Triton on 8002, TorchServe on 8082) leak model names, batch sizes, GPU utilisation, and inference latency. You can map the entire deployment topology without ever touching the inference API.
+
+
+
+Port and Protocol Reference
+Here is the reference table you will use for the rest of this room. Keep it handy.
+
+Component	Default Port(s)	Protocol(s)	Recon Endpoints
+NVIDIA Triton
+(Loads models into memory and serves predictions at scale)	8000, 8001, 8002	HTTP, gRPC, Prometheus	/v2/health/ready, /v2/models
+TensorFlow Serving
+(Google's model serving framework for TensorFlow models)	8500, 8501	gRPC, HTTP	/v1/models/<name>
+TorchServe
+(PyTorch's official model serving framework)	8080, 8081, 8082	HTTP	/ping, /models
+Ollama
+(Local runtime for running LLMs on your own hardware)	11434	HTTP	/api/tags, /api/show
+vLLM
+(High-throughput LLM serving engine with OpenAI-compatible API)	8000	HTTP	/v1/models
+MLflow
+(Tracks experiments, stores models, and manages the ML lifecycle)	5000	HTTP	/api/2.0/mlflow/experiments/search
+Kubeflow
+(Kubernetes-native platform for orchestrating ML pipelines)	80, 443	HTTP	/pipeline/apis/v1beta1/pipelines
+Ray
+(Distributed compute framework for scaling AI workloads)	8265, 8000	HTTP	/api/jobs/, Ray Dashboard
+Qdrant
+(Vector database for semantic search and RAG pipelines)	6333, 6334	HTTP, gRPC	/collections
+Weaviate
+(Vector database with built-in GraphQL and module system)	8080	HTTP, GraphQL	/v1/schema, /v1/meta
+Milvus
+(Distributed vector database for large-scale embedding storage)	19530	gRPC	Port 19530 connection
+Jupyter Notebook
+(Interactive coding environment used by data scientists)	8888	HTTP	/api/kernels, /api/contents
+MinIO
+(S3-compatible object storage often used for model artifacts)	9000, 9001	HTTP (S3-compatible)	Bucket listing
+Prometheus metrics
+(Not a standalone AI service; exposed by Triton on 8002, TorchServe on 8082, and other ML servers as a built-in monitoring endpoint)	8002, 8082	HTTP	/metrics
+
+
+
+Case Study: What Exposed AI Infrastructure Actually Looks Like
+In Task 1, we mentioned that a January 2026 Shodan scan found 42,665 exposed AI agent instances. Let's break down what those instances actually were, because the number alone does not tell you much. The detail does. The most commonly exposed services included MLflow dashboards sitting on port 5000 with no authentication. Unauthenticated Jupyter notebooks on port 8888, some already compromised with cryptomining malware (Monero miners like peer2profit), deployed by earlier attackers who found them first. Open Ray dashboards on port 8265. Triton inference endpoints on port 8000.
+
+These were not isolated findings. They were connected systems. IBM X-Force documented this pattern in their 2025 research on ML training infrastructure attacks. In one case, they mapped a complete chain: a Jupyter notebook running on Azure ML contained cleartext MLflow credentials in a notebook cell. Those credentials pointed to an MLflow tracking server. The MLflow server's model registry contained artifact URIs pointing to S3 storage buckets holding the actual model files. Every component trusted the network boundary, so compromising one compromised the rest.
+
+The Shodan dorks that found these services were not complicated:
+
+port:5000 "MLflow" for exposed MLflow instances
+port:8888 title:"Home Page - Select or create a notebook" for unauthenticated Jupyter notebooks
+http.title:"Ray Dashboard" for exposed Ray cluster dashboards
+port:8001 "triton" for Triton gRPC endpoints
+Simple queries. Massive results. That is why the port reference table above matters. If you know the ports and the service banners, finding AI infrastructure is not hard. The hard part is knowing to look in the first place.
+
+
+HTTP Header Fingerprinting
+Response headers are often the fastest way to identify an AI framework. Many inference engines broadcast their identity unless an administrator specifically masks them behind a reverse proxy.
+
+TorchServe returns a Server: TorchServe/0.x.x header.
+That is a direct identification with no ambiguity.
+Triton Inference Server includes a NV-Status header in its responses.
+It also responds to a specific request header: if you send endpoint-load-metrics-format: text, triton returns hardware telemetry (CPU and GPU utilisation numbers) directly in the response headers.
+No other framework does this: if you see GPU utilisation data in an HTTP header, you are talking to Triton.
+FastAPI-based ML services show server: uvicorn in the response.
+When you combine that with routes like /predict or /embeddings, you have a strong indicator of a Python ML backend.
+OpenAI-compatible wrappers (vLLM, LiteLLM, Ollama) return x-request-id headers and structured JSON with an "object": "model" field on their /v1/models endpoint.
+
+
+API Response Signatures
+Each framework returns distinctly structured JSON. Once you have seen these a few times, you can identify the framework from the response body alone.
+
+TensorFlow Serving returns: {"model_version_status": [{"version": "1", "state": "AVAILABLE"}]}
+Triton returns: {"name": "fraud_detector", "versions": ["1"], "platform": "tensorflow_graphdef"}
+MLflow error responses include stack traces referencing mlflow.server and mlflow.tracking namespaces.
+Even the error tells you what you are talking to.
+OpenAI-compatible endpoints return: {"object": "model", "id": "llama-3.1-8b", "created": 1700000000}
+If you hit an endpoint and get back JSON containing "object" : "model", you are talking to something that speaks the OpenAI API format. That narrows it down to vLLM, LiteLLM, Ollama, or a custom wrapper.
+
+Error Message Fingerprinting
+This is one of the most reliable identification techniques, and it works because AI inference APIs are rigid. They expect specific tensor shapes and data types. Send something wrong, and they complain in ways that reveal exactly what they are.
+
+The technique is simple: send a deliberately malformed payload and read the error response.
+
+Send a flat list of integers to a TensorFlow Serving endpoint that expects a complex tensor object, and you get back an error mentioning tensorinfo_map. That string only appears in TF Serving errors.
+Send a bad request to an MLflow server, and the stack trace references mlflow.server, mlflow.tracking, or databricks namespaces.
+MLflow path traversal errors (CVE-2024-1558) go further, exposing full server filesystem paths.
+Databricks Mosaic AI returns Java exceptions  io.jsonwebtoken.IncorrectClaimException for malformed tokens. That is an instant identifier.
+The reason this technique works so well is that AI frameworks produce errors that are much more verbose than those in traditional web applications. Data scientists need detailed debugging information during model development. Those debug-friendly defaults rarely get turned off before production deployment.
+
+
+Endpoint Naming Conventions
+Traditional REST APIs use resource nouns: /users, /accounts, /products. AI endpoints use computational action terms that stand out immediately during directory brute-forcing.
+
+Inference endpoints: /predict, /invocations (the SageMaker convention), /infer, /generate, /embeddings, /score
+Model management: /v1/models, /v2/models
+MLflow internal API: /api/2.0/mlflow/ (this prefix is distinctive and does not appear in any other framework)
+Kubeflow pipelines: /pipeline/apis/v1beta1/
+If you are running ffuf or feroxbuster against a target, add these paths to your wordlist. Standard wordlists from SecLists will not include them.
+
+gRPC Fingerprinting
+Many AI services expose gRPC alongside HTTP.
+
+Triton uses gRPC on port 8001.
+TensorFlow Serving uses it on port 8500.
+Traditional HTTP scanners miss these entirely because gRPC is a binary protocol that does not respond to standard HTTP probes.
+
+The tool for this is grpcurl. If gRPC reflection is enabled (common in development environments that get pushed to production without hardening), you can dump the entire protobuf schema:
+
+grpcurl -plaintext target:8001 list
+grpcurl -plaintext target:8001 describe inference.GRPCInferenceService
+That output reveals all available RPCs, the exact structure of every input tensor, and the format of every output. Think of it as the gRPC equivalent of finding a /openapi.json file on a REST API.
+
+
+TLS Fingerprinting (JA3/JA4)
+AI deployments have distinctive TLS signatures because internal service-to-service traffic is dominated by Python libraries (requests, urllib, gRPC implementations) rather than web browsers. JA3 and JA4 hash analysis can differentiate automated ML pipeline traffic from human web browsing at the network level.
+
+The GreyNoise research we will cover in the case study below found that 99% of the attack traffic in one campaign shared the same JA4H signature, despite originating from 62 different IP addresses across 27 countries. That kind of uniformity points to shared automation tooling, and it is exactly what JA4 fingerprinting is designed to catch.
+
+
+Case Study: GreyNoise LLM Endpoint Reconnaissance
+Between October 2025 and January 2026, GreyNoise captured over 91,000 attack sessions targeting AI deployments through their Ollama honeypot infrastructure. One campaign stood out. Over 11 days starting December 28, attackers generated 80,000+ requests probing conversational endpoints to determine whether each target was compatible with OpenAI, Gemini, or Anthropic API schemas. They targeted over 73 different LLM model endpoints, including GPT-4o variants, Claude models, Llama, Gemini, DeepSeek, Mistral, Qwen, and Grok.
+
+The fingerprinting technique was simple and effective. The attackers sent innocuous prompts: "hi" appeared 32,716 times. "How many states are there in the United States?" appeared 27,778 times. "How many letter 'r' are in the word strawberry?" was another common test. These prompts were not random. Each one produces a response that differs in structure, format, and content depending on which model is running behind the endpoint. By comparing the response format to known API schemas, the attackers could identify the exact model and proxy configuration without triggering any content moderation filters.
+
+GreyNoise traced the IPs and found overlap with infrastructure previously used to exploit over 200 known CVEs, including React2Shell (CVE-2025-55182). Their assessment: "Professional threat actor conducting reconnaissance. The infrastructure overlap with established CVE-scanning operations suggests that this enumeration feeds into a larger exploitation pipeline. They're building target lists."
+
+This is AI fingerprinting at scale. No exploitation. No payloads. Just systematic identification of what is deployed and how it responds.
+
+
+
+
+
+
+
