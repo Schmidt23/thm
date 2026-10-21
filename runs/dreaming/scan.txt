@@ -1,0 +1,24 @@
+# Nmap 7.99 scan initiated Wed Oct 21 04:32:44 2026 as: /usr/lib/nmap/nmap --privileged -sV -sC -vv -p- -oN scan.txt 10.112.175.11
+Nmap scan report for 10.112.175.11
+Host is up, received reset ttl 62 (0.013s latency).
+Scanned at 2026-10-21 04:32:46 EDT for 20s
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE REASON         VERSION
+22/tcp open  ssh     syn-ack ttl 62 OpenSSH 8.2p1 Ubuntu 4ubuntu0.13 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 45:02:00:93:4e:31:87:05:16:e2:cb:c6:ba:73:22:72 (RSA)
+| ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDZLgFXEJFwB8lnL2O8AeZmot73PYhpl/Cdl61JJajplDPoPNuG+KxtYzAfxTdLku62q9tfy27QZTtPjDmWXlSHa5ijBxXk2Uk0gYOaEhu6ENCoVHQji1WLY0rzRJmZ4qkelOU8WAs58hdNg7C/YYR5CIz7Etu09WLCUX97ELMa2IlSNZ+o0m1QHEfcphnyQ5KF1+llDcfkcjFkVUCWpKahIMZCrosLctPC3nb2NG9LLig92DuN8fFQHUd0nPqwI5u7mxsygtTap8+ARuULDd3DTUxX4XiJLqjd9Y1MkG532I85SjxRlFKzcxCeDeqvbSRJSHJ7Tn2OT4l3CBHu/K6CubPODIaV2KkLPK7h+Ex3lDWmRuQDt2T1qmuRVLp148JUtX+CGGgjTurXGFKWKnJDtyNi+U7BqrvF5Mg7VqUAYswPSa9HbpIvx+P0kFyU8A50rSYCGU0wy14z+iQbbMfg7PEudP0ilJnSd8DyvOttOXqcapvTjU/97Yd1thWdUWU=
+|   256 fc:4f:32:55:bf:3c:47:53:37:1e:3d:6a:7c:d2:75:be (ECDSA)
+| ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBIMzQoC92Sf+nNee4Vh5d7+rJkjcvPnQMg8DRGoBxShVaKWbZhq+BAIZdrlkJXkh9yn6SKmlwZOhpyeSgZwCeMg=
+|   256 ad:16:00:8f:73:0f:ca:59:e9:ce:a3:25:88:d0:bc:53 (ED25519)
+|_ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBGYSbnrCIV9vb+gv2NYJ6TZ9J7WsiSWuzmRF8E3JEex
+80/tcp open  http    syn-ack ttl 62 Apache httpd 2.4.41 ((Ubuntu))
+| http-methods: 
+|_  Supported Methods: GET POST OPTIONS HEAD
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Read data files from: /usr/share/nmap
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Wed Oct 21 04:33:06 2026 -- 1 IP address (1 host up) scanned in 21.48 seconds

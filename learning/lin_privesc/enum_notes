@@ -86,6 +86,7 @@ find / -atime -10 finds files that were accessed in the last 10 days
 find / -cmin -60 finds files changed within the last hour (60 minutes)
 find / -amin -60 finds files accessed within the last hour (60 minutes)
 find / -size +50M finds files with at least 50 MB size
+find / ! -path "/proc/*" ! -path "/sys/*" -writable -type f 2>/dev/null - find writable file excluding directories /proc and /sys; good idea to also exclude /home/ of logged in user
 
 The example above returns files that are larger than 100 MB. It is important to note that the find command tends to generate errors, which sometimes makes the output hard to read. To address this, we can use 2>/dev/null, which sends errors to /dev/null, effectively ignoring them.
 Folders and files that can be written to or executed from:
