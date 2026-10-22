@@ -1,0 +1,17 @@
+                                                                                                                                                                                                                                             
+┌──(kali㉿kali)-[~/Documents/thm/runs/corridor]
+└─$ vim md5_numbers.sh                                                                      
+                                                                                                                                                                                                                                             
+┌──(kali㉿kali)-[~/Documents/thm/runs/corridor]
+└─$ ./md5_numbers.sh                                                                        
+                                                                                                                                                                                                                                             
+┌──(kali㉿kali)-[~/Documents/thm/runs/corridor]
+└─$ dos2unix md5_wordlist.txt                                                               
+dos2unix: converting file md5_wordlist.txt to Unix format...
+                                                                                                                                                                                                                                             
+┌──(kali㉿kali)-[~/Documents/thm/runs/corridor]
+└─$ wc -l md5_wordlist.txt                                                                  
+101 md5_wordlist.txt
+                                
+┌──(kali㉿kali)-[~/Documents/thm/runs/corridor]
+└─$ gobuster fuzz -u 10.113.132.90/FUZZ -w /home/kali/Documents/thm/runs/corridor/md5_wordlist.txt
