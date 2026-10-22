@@ -1,0 +1,14 @@
+# Nmap 7.99 scan initiated Thu Oct 22 04:42:30 2026 as: /usr/lib/nmap/nmap --privileged -sV -sC -vv -p- -oN scan.txt 10.112.188.95
+Nmap scan report for 10.112.188.95
+Host is up, received reset ttl 61 (0.013s latency).
+Scanned at 2026-10-22 04:42:32 EDT for 24s
+Not shown: 65534 closed tcp ports (reset)
+PORT   STATE SERVICE REASON         VERSION
+80/tcp open  http    syn-ack ttl 61 PHP cli server 5.5 or later (PHP 8.1.0-dev)
+| http-methods: 
+|_  Supported Methods: GET HEAD POST OPTIONS
+|_http-title:  Admin Dashboard
+
+Read data files from: /usr/share/nmap
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Thu Oct 22 04:42:56 2026 -- 1 IP address (1 host up) scanned in 25.76 seconds

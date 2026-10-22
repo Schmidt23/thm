@@ -1,0 +1,5 @@
+nmpa scan
+php version search on exploit-db
+whoami -> root
+find / -name *flag* -type f 2>/dev/null
+cat /flag.txt
